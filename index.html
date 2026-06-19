@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Focus Funnel</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --panel-2: #1d2130;
+    --ink: #e7e9ef;
+    --muted: #8b91a3;
+    --line: #2a2f40;
+    --now: #ff6b6b;
+    --next: #ffd166;
+    --never: #5b6172;
+    --accent: #6c8cff;
+    --accent-2: #4ade80;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(108,140,255,.14), transparent 60%),
+      radial-gradient(700px 500px at -10% 110%, rgba(74,222,128,.10), transparent 55%),
+      var(--bg);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .title { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 11px;
+    background: conic-gradient(from 200deg, var(--now), var(--next), var(--accent-2), var(--accent), var(--now));
+    box-shadow: var(--shadow);
+  }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.3px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 8px 14px; min-width: 70px; text-align: center;
+  }
+  .stat b { font-size: 18px; display: block; }
+  .stat span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+
+  /* Capture box */
+  .capture {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 24px; box-shadow: var(--shadow);
+  }
+  .capture label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+  .capture-row { display: flex; gap: 10px; margin-top: 8px; }
+  input[type=text] {
+    flex: 1; background: #0c0e15; border: 1px solid var(--line); color: var(--ink);
+    padding: 12px 14px; border-radius: 10px; font-size: 15px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,140,255,.18); }
+  button {
+    cursor: pointer; border: none; border-radius: 10px; font-weight: 600; font-size: 14px;
+    padding: 12px 18px; color: #0c0e15; background: var(--accent);
+    transition: transform .06s ease, filter .15s ease;
+  }
+  button:hover { filter: brightness(1.08); }
+  button:active { transform: translateY(1px); }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+  /* Columns */
+  .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 760px) { .board { grid-template-columns: 1fr; } }
+  .col {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px; min-height: 160px;
+  }
+  .col.dragover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,140,255,.18) inset; }
+  .col h2 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; letter-spacing: .3px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.now { background: var(--now); } .dot.next { background: var(--next); } .dot.never { background: var(--never); }
+  .col .count { margin-left: auto; color: var(--muted); font-weight: 600; font-size: 12px; }
+
+  .card {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 9px; cursor: grab;
+    display: flex; align-items: flex-start; gap: 8px;
+  }
+  .card:active { cursor: grabbing; }
+  .card .txt { flex: 1; word-break: break-word; }
+  .card.done .txt { text-decoration: line-through; color: var(--muted); }
+  .card .x { color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; border-radius: 6px; }
+  .card .x:hover { color: var(--now); background: rgba(255,107,107,.12); }
+  .card .chk { cursor: pointer; user-select: none; font-size: 15px; opacity: .55; }
+  .card .chk:hover { opacity: 1; }
+  .col .empty { color: var(--muted); font-size: 13px; font-style: italic; padding: 6px 2px; }
+
+  /* Focus mode */
+  .focusbar { display: flex; gap: 10px; align-items: center; margin: 22px 0 0; flex-wrap: wrap; }
+  .ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .ghost:hover { border-color: var(--accent); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(8,9,13,.86); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px;
+  }
+  .overlay.show { display: flex; }
+  .focuscard {
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow);
+    width: 100%; max-width: 560px; padding: 34px 30px; text-align: center;
+  }
+  .focuscard .label { color: var(--now); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .focuscard .task { font-size: 26px; font-weight: 700; margin: 14px 0 6px; letter-spacing: -.3px; }
+  .focuscard .progress { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .focuscard .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .btn-done { background: var(--accent-2); }
+  .btn-skip { background: var(--next); }
+  .focuscard .closex { margin-top: 18px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .focuscard .closex:hover { color: var(--ink); }
+  .allclear { font-size: 20px; font-weight: 700; }
+  .allclear small { display:block; font-weight: 400; color: var(--muted); font-size: 14px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="title">
+      <div class="logo"></div>
+      <div>
+        <h1>Focus Funnel</h1>
+        <div class="sub">Dump it all. Sort each into Now / Next / Never. Then just focus.</div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="s-now">0</b><span>Now</span></div>
+      <div class="stat"><b id="s-next">0</b><span>Next</span></div>
+      <div class="stat"><b id="s-done">0</b><span>Done</span></div>
+    </div>
+  </header>
+
+  <div class="capture">
+    <label for="entry">Brain dump</label>
+    <div class="capture-row">
+      <input id="entry" type="text" placeholder="What's on your mind? Add a task and hit Enter…" autocomplete="off" />
+      <button id="add">Add</button>
+    </div>
+    <div class="hint">Tip: drag cards between columns • click ✓ to complete • everything saves to this browser automatically.</div>
+  </div>
+
+  <div class="board">
+    <div class="col" data-bucket="now">
+      <h2><span class="dot now"></span> Now <span class="count" id="c-now">0</span></h2>
+      <div class="list" id="list-now"></div>
+    </div>
+    <div class="col" data-bucket="next">
+      <h2><span class="dot next"></span> Next <span class="count" id="c-next">0</span></h2>
+      <div class="list" id="list-next"></div>
+    </div>
+    <div class="col" data-bucket="never">
+      <h2><span class="dot never"></span> Never <span class="count" id="c-never">0</span></h2>
+      <div class="list" id="list-never"></div>
+    </div>
+  </div>
+
+  <div class="focusbar">
+    <button id="focus" class="btn-done">▶ Focus on “Now”</button>
+    <button id="clear-never" class="ghost">Clear “Never”</button>
+    <button id="clear-done" class="ghost">Clear completed</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="focuscard" id="focuscard"></div>
+</div>
+
+<script>
+(function () {
+  const LS_KEY = "focus-funnel-v1";
+  const buckets = ["now", "next", "never"];
+  let state = load();
+  let focusIdx = 0;
+  let dragId = null;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { tasks: [], doneCount: 0 };
+  }
+  function save() { localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function addTask(text) {
+    text = text.trim();
+    if (!text) return;
+    // New tasks land in "Next" by default — triage moves them to Now.
+    state.tasks.push({ id: uid(), text, bucket: "next", done: false });
+    save(); render();
+  }
+
+  function removeTask(id) {
+    state.tasks = state.tasks.filter(t => t.id !== id);
+    save(); render();
+  }
+
+  function toggleDone(id) {
+    const t = state.tasks.find(t => t.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    state.doneCount += t.done ? 1 : -1;
+    if (state.doneCount < 0) state.doneCount = 0;
+    save(); render();
+  }
+
+  function moveTask(id, bucket) {
+    const t = state.tasks.find(t => t.id === id);
+    if (!t || t.bucket === bucket) return;
+    t.bucket = bucket;
+    save(); render();
+  }
+
+  function makeCard(t) {
+    const card = document.createElement("div");
+    card.className = "card" + (t.done ? " done" : "");
+    card.draggable = true;
+    card.dataset.id = t.id;
+
+    const chk = document.createElement("span");
+    chk.className = "chk";
+    chk.textContent = t.done ? "✓" : "○";
+    chk.title = "Toggle complete";
+    chk.onclick = () => toggleDone(t.id);
+
+    const txt = document.createElement("div");
+    txt.className = "txt";
+    txt.textContent = t.text;
+
+    const x = document.createElement("span");
+    x.className = "x";
+    x.textContent = "×";
+    x.title = "Delete";
+    x.onclick = () => removeTask(t.id);
+
+    card.append(chk, txt, x);
+
+    card.addEventListener("dragstart", () => { dragId = t.id; setTimeout(() => card.style.opacity = .4, 0); });
+    card.addEventListener("dragend", () => { card.style.opacity = 1; dragId = null; });
+    return card;
+  }
+
+  function render() {
+    const counts = { now: 0, next: 0, never: 0 };
+    buckets.forEach(b => document.getElementById("list-" + b).innerHTML = "");
+
+    state.tasks.forEach(t => {
+      counts[t.bucket]++;
+      document.getElementById("list-" + t.bucket).appendChild(makeCard(t));
+    });
+
+    buckets.forEach(b => {
+      const list = document.getElementById("list-" + b);
+      if (!list.children.length) {
+        const e = document.createElement("div");
+        e.className = "empty";
+        e.textContent = b === "now" ? "Drag your most important task here." :
+                        b === "next" ? "Things that can wait." : "Let it go.";
+        list.appendChild(e);
+      }
+      document.getElementById("c-" + b).textContent = counts[b];
+    });
+
+    document.getElementById("s-now").textContent = counts.now;
+    document.getElementById("s-next").textContent = counts.next;
+    document.getElementById("s-done").textContent = state.doneCount;
+  }
+
+  // Drag & drop on columns
+  document.querySelectorAll(".col").forEach(col => {
+    col.addEventListener("dragover", e => { e.preventDefault(); col.classList.add("dragover"); });
+    col.addEventListener("dragleave", () => col.classList.remove("dragover"));
+    col.addEventListener("drop", e => {
+      e.preventDefault();
+      col.classList.remove("dragover");
+      if (dragId) moveTask(dragId, col.dataset.bucket);
+    });
+  });
+
+  // Capture
+  const entry = document.getElementById("entry");
+  document.getElementById("add").onclick = () => { addTask(entry.value); entry.value = ""; entry.focus(); };
+  entry.addEventListener("keydown", e => { if (e.key === "Enter") { addTask(entry.value); entry.value = ""; } });
+
+  // Bulk actions
+  document.getElementById("clear-never").onclick = () => {
+    state.tasks = state.tasks.filter(t => t.bucket !== "never");
+    save(); render();
+  };
+  document.getElementById("clear-done").onclick = () => {
+    state.tasks = state.tasks.filter(t => !t.done);
+    save(); render();
+  };
+
+  // Focus mode
+  const overlay = document.getElementById("overlay");
+  const focuscard = document.getElementById("focuscard");
+
+  function nowTasks() { return state.tasks.filter(t => t.bucket === "now" && !t.done); }
+
+  function openFocus() {
+    focusIdx = 0;
+    if (!nowTasks().length) { return flashAllClear(); }
+    overlay.classList.add("show");
+    renderFocus();
+  }
+  function closeFocus() { overlay.classList.remove("show"); }
+
+  function flashAllClear() {
+    focuscard.innerHTML = `<div class="allclear">🎯 Nothing in “Now”.<small>Drag a task into the Now column, then come back to focus.</small></div>
+      <div class="closex" id="fx-close">Close</div>`;
+    overlay.classList.add("show");
+    document.getElementById("fx-close").onclick = closeFocus;
+  }
+
+  function renderFocus() {
+    const list = nowTasks();
+    if (!list.length) {
+      focuscard.innerHTML = `<div class="allclear">✅ All clear!<small>You finished everything in “Now”. Nice.</small></div>
+        <div class="closex" id="fx-close">Close</div>`;
+      document.getElementById("fx-close").onclick = closeFocus;
+      return;
+    }
+    if (focusIdx >= list.length) focusIdx = 0;
+    const t = list[focusIdx];
+    focuscard.innerHTML = `
+      <div class="label">Focus</div>
+      <div class="task"></div>
+      <div class="progress">${focusIdx + 1} of ${list.length} in Now</div>
+      <div class="actions">
+        <button class="btn-done" id="fx-done">✓ Done</button>
+        <button class="btn-skip" id="fx-skip">↷ Next task</button>
+      </div>
+      <div class="closex" id="fx-close">Exit focus</div>`;
+    focuscard.querySelector(".task").textContent = t.text;
+    document.getElementById("fx-done").onclick = () => { toggleDone(t.id); renderFocus(); };
+    document.getElementById("fx-skip").onclick = () => { focusIdx++; renderFocus(); };
+    document.getElementById("fx-close").onclick = closeFocus;
+  }
+
+  document.getElementById("focus").onclick = openFocus;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeFocus(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeFocus(); });
+
+  render();
+  entry.focus();
+})();
+</script>
+</body>
+</html>
